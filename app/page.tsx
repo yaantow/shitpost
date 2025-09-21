@@ -12,6 +12,8 @@ import { ProfileMenu } from "@/components/profile-menu"
 import { createClient } from "@/lib/supabase/client"
 import { useTweets } from "@/hooks/use-tweets"
 import Link from "next/link"
+import { toast } from "sonner"
+
 
 export default function TweetScheduler() {
   const [activeTab, setActiveTab] = useState("compose")
@@ -51,15 +53,8 @@ export default function TweetScheduler() {
     return () => subscription.unsubscribe()
   }, [supabase])
 
-  const convertedTweets = tweets.map((tweet) => ({
-    id: tweet.id,
-    content: tweet.content,
-    scheduledDate: new Date(tweet.scheduled_for || tweet.created_at),
-    status: tweet.status === "posted" ? ("published" as const) : (tweet.status as "scheduled" | "draft"),
-    createdAt: new Date(tweet.created_at),
-    isThread: tweet.thread_id !== null,
-    threadTweets: tweet.thread_id ? [tweet.content] : undefined,
-  }))
+  // Tweets are already transformed in the useTweets hook
+  const convertedTweets = tweets
 
   const requireAuth = (callback: Function) => {
     return (...args: any[]) => {
@@ -79,7 +74,38 @@ export default function TweetScheduler() {
         status: tweet.status === "published" ? ("posted" as const) : tweet.status,
         thread_tweets: tweet.isThread ? tweet.threadTweets : undefined,
       }
-      await addTweet(tweetData)
+      
+      const result = await addTweet(tweetData)
+      
+      // If this is a "Post Now" tweet (status: "posted"), post it to Twitter immediately
+      if (tweet.status === "published") {
+        try {
+          toast.loading("Posting to Twitter...", { id: "posting-tweet" })
+          
+          const postResponse = await fetch("/api/tweets/post", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tweetId: result.id || result.tweets?.[0]?.id,
+              content: tweet.content,
+              isThread: tweet.isThread,
+              threadTweets: tweet.threadTweets,
+            }),
+          })
+
+          const postData = await postResponse.json()
+
+          if (!postResponse.ok) {
+            throw new Error(postData.error || "Failed to post to Twitter")
+          }
+
+          toast.success("Tweet posted to Twitter successfully!", { id: "posting-tweet" })
+          console.log("Tweet posted to Twitter successfully:", postData)
+        } catch (twitterError) {
+          console.error("Error posting to Twitter:", twitterError)
+          toast.error(`Failed to post to Twitter: ${twitterError instanceof Error ? twitterError.message : "Unknown error"}`, { id: "posting-tweet" })
+        }
+      }
     } catch (error) {
       console.error("Error adding tweet:", error)
     }
@@ -124,7 +150,7 @@ export default function TweetScheduler() {
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: "url(/background.png)",
-          filter: "blur(4px) brightness(0.7)",
+          filter: "blur(20px) brightness(0.4)",
           transform: "scale(1.1)",
         }}
       />
@@ -222,6 +248,29 @@ export default function TweetScheduler() {
               </Card>
             </div>
           )}
+
+          {/* Footer */}
+          <footer className="mt-16 pt-8 border-t border-border/50">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-4">
+                <span>&copy; 2024 ShitPost. All rights reserved.</span>
+              </div>
+              <div className="flex items-center gap-6">
+                <Link 
+                  href="/privacy" 
+                  className="hover:text-foreground transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+                <Link 
+                  href="/terms" 
+                  className="hover:text-foreground transition-colors"
+                >
+                  Terms of Service
+                </Link>
+              </div>
+            </div>
+          </footer>
         </div>
       </div>
     </div>

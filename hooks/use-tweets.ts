@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
-import type { Tweet } from "@/lib/types"
+import type { Tweet } from "@/types/tweet"
 
 export function useTweets() {
   const [tweets, setTweets] = useState<Tweet[]>([])
@@ -20,7 +20,18 @@ export function useTweets() {
         throw new Error(data.error || "Failed to fetch tweets")
       }
 
-      setTweets(data.tweets || [])
+      // Transform database tweets to frontend format
+      const transformedTweets = (data.tweets || []).map((tweet: any) => ({
+        id: tweet.id,
+        content: tweet.content,
+        scheduledDate: new Date(tweet.scheduled_for || tweet.created_at),
+        status: tweet.status === "posted" ? ("published" as const) : (tweet.status as "scheduled" | "draft"),
+        createdAt: new Date(tweet.created_at),
+        isThread: tweet.thread_id !== null,
+        threadTweets: tweet.thread_id ? [tweet.content] : undefined,
+      }))
+
+      setTweets(transformedTweets)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
@@ -48,7 +59,7 @@ export function useTweets() {
         throw new Error(data.error || "Failed to create tweet")
       }
 
-      // Refresh tweets list
+      // Refresh tweets list to get the updated data
       await fetchTweets()
       return data.tweet || data.tweets
     } catch (err) {

@@ -27,28 +27,43 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
   const [editTime, setEditTime] = useState("")
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [selectedIsNextMonth, setSelectedIsNextMonth] = useState(false)
-  const [selectedTimeFromNow, setSelectedTimeFromNow] = useState<number | null>(null)
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null)
+  const [isPosting, setIsPosting] = useState(false)
+  const [postStatus, setPostStatus] = useState<"idle" | "posting" | "success" | "error">("idle")
 
   const characterCount = content.length
   const maxCharacters = 280
   const isOverLimit = characterCount > maxCharacters
 
-  const handleQuickSchedule = (day?: number, timeFromNow?: number, isNextMonth?: boolean) => {
+  const handleQuickSchedule = (day?: number, timeSlot?: string, isNextMonth?: boolean) => {
     if (!content.trim() || isOverLimit) return
 
     let scheduledDate: Date
 
-    if (day) {
+    if (day && timeSlot) {
       scheduledDate = new Date()
       if (isNextMonth) {
         scheduledDate.setMonth(scheduledDate.getMonth() + 1)
       }
       scheduledDate.setDate(day)
-      scheduledDate.setHours(9, 0, 0, 0)
-    } else if (timeFromNow === 0) {
-      scheduledDate = new Date()
-    } else if (timeFromNow) {
-      scheduledDate = new Date(Date.now() + timeFromNow * 60000)
+      
+      // Parse time slot (e.g., "09:00am", "11:59am", "02:00pm", "04:00pm", "09:00pm")
+      const timeSlotLower = timeSlot.toLowerCase()
+      const isPM = timeSlotLower.includes('pm')
+      const timeMatch = timeSlot.match(/(\d{1,2}):(\d{2})/)
+      
+      if (timeMatch) {
+        let hours = parseInt(timeMatch[1])
+        const minutes = parseInt(timeMatch[2])
+        
+        if (isPM && hours !== 12) {
+          hours += 12
+        } else if (!isPM && hours === 12) {
+          hours = 0
+        }
+        
+        scheduledDate.setHours(hours, minutes, 0, 0)
+      }
     } else {
       scheduledDate = new Date()
     }
@@ -58,7 +73,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
       onAddTweet({
         content: validThreadTweets[0],
         scheduledDate,
-        status: timeFromNow === 0 ? "published" : "scheduled",
+        status: "scheduled",
         isThread: true,
         threadTweets: validThreadTweets,
       })
@@ -66,7 +81,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
       onAddTweet({
         content: content.trim(),
         scheduledDate,
-        status: timeFromNow === 0 ? "published" : "scheduled",
+        status: "scheduled",
       })
     }
 
@@ -75,7 +90,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     setIsThread(false)
     setSelectedDay(null)
     setSelectedIsNextMonth(false)
-    setSelectedTimeFromNow(null)
+    setSelectedTimeSlot(null)
   }
 
   const executeScheduleWithDateTime = (scheduledDate: Date) => {
@@ -103,41 +118,53 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     setIsThread(false)
     setSelectedDay(null)
     setSelectedIsNextMonth(false)
-    setSelectedTimeFromNow(null)
+    setSelectedTimeSlot(null)
+  }
+
+  const executeScheduleWithTimeSlot = (day: number, timeSlot: string, isNextMonth: boolean) => {
+    if (!content.trim() || isOverLimit) return
+
+    const scheduledDate = new Date()
+    if (isNextMonth) {
+      scheduledDate.setMonth(scheduledDate.getMonth() + 1)
+    }
+    scheduledDate.setDate(day)
+    
+    // Parse time slot (e.g., "09:00am", "11:59am", "02:00pm", "04:00pm", "09:00pm")
+    const timeSlotLower = timeSlot.toLowerCase()
+    const isPM = timeSlotLower.includes('pm')
+    const timeMatch = timeSlot.match(/(\d{1,2}):(\d{2})/)
+    
+    if (timeMatch) {
+      let hours = parseInt(timeMatch[1])
+      const minutes = parseInt(timeMatch[2])
+      
+      if (isPM && hours !== 12) {
+        hours += 12
+      } else if (!isPM && hours === 12) {
+        hours = 0
+      }
+      
+      scheduledDate.setHours(hours, minutes, 0, 0)
+    }
+
+    executeScheduleWithDateTime(scheduledDate)
   }
 
   const handleDaySelection = (day: number, isNextMonth?: boolean) => {
     setSelectedDay(day)
     setSelectedIsNextMonth(isNextMonth || false)
 
-    if (selectedTimeFromNow !== null) {
-      const scheduledDate = new Date()
-      if (isNextMonth) {
-        scheduledDate.setMonth(scheduledDate.getMonth() + 1)
-      }
-      scheduledDate.setDate(day)
-      const futureTime = new Date(Date.now() + selectedTimeFromNow * 60000)
-      scheduledDate.setHours(futureTime.getHours(), futureTime.getMinutes(), 0, 0)
-
-      executeScheduleWithDateTime(scheduledDate)
+    if (selectedTimeSlot !== null) {
+      executeScheduleWithTimeSlot(day, selectedTimeSlot, isNextMonth || false)
     }
   }
 
-  const handleTimeSelection = (timeFromNow: number) => {
-    setSelectedTimeFromNow(timeFromNow)
+  const handleTimeSelection = (timeSlot: string) => {
+    setSelectedTimeSlot(timeSlot)
 
     if (selectedDay !== null) {
-      const scheduledDate = new Date()
-      if (selectedIsNextMonth) {
-        scheduledDate.setMonth(scheduledDate.getMonth() + 1)
-      }
-      scheduledDate.setDate(selectedDay)
-      const futureTime = new Date(Date.now() + timeFromNow * 60000)
-      scheduledDate.setHours(futureTime.getHours(), futureTime.getMinutes(), 0, 0)
-
-      executeScheduleWithDateTime(scheduledDate)
-    } else if (timeFromNow === 0) {
-      handleQuickSchedule(undefined, timeFromNow)
+      executeScheduleWithTimeSlot(selectedDay, timeSlot, selectedIsNextMonth)
     }
   }
 
@@ -273,35 +300,72 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
 
   const generateTimeButtons = () => {
     const now = new Date()
-    const timeOptions = [
-      { label: "Now", minutes: 0 },
-      { label: "30m", minutes: 30 },
-      { label: "1h", minutes: 60 },
-      { label: "2h", minutes: 120 },
-      { label: "4h", minutes: 240 },
-    ]
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    // Fixed time slots - two sets of 5 options each
+      const timeOptions = [
+        // First set
+        { label: "7:30am", timeSlot: "07:30am" },
+        { label: "9:00am", timeSlot: "09:00am" },
+        { label: "11:59am", timeSlot: "11:59am" },
+        { label: "2:00pm", timeSlot: "02:00pm" },
+        { label: "11:44pm", timeSlot: "11:44pm" },
+        
+        // Second set      
+        { label: "4:00pm", timeSlot: "04:00pm" },
+        { label: "3:45pm", timeSlot: "03:45pm" },
+        { label: "6:30pm", timeSlot: "06:30pm" },
+        { label: "9:00pm", timeSlot: "09:00pm" },
+        { label: "10:15pm", timeSlot: "10:15pm" },
+      ]
+
+    // Check if "Today" is selected
+    const isTodaySelected = selectedDay === now.getDate() && !selectedIsNextMonth
 
     return timeOptions.map((option) => {
-      const futureTime = new Date(now.getTime() + option.minutes * 60000)
-      const timeString =
-        option.minutes === 0 ? "now" : futureTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      const isSelected = selectedTimeFromNow === option.minutes
+      const isSelected = selectedTimeSlot === option.timeSlot
+      
+      // If today is selected, check if the time has passed
+      let isDisabled = (!content.trim() && !isThread) || isOverLimit
+      if (isTodaySelected) {
+        // Parse time from timeSlot
+        const timeSlotLower = option.timeSlot.toLowerCase()
+        const isPM = timeSlotLower.includes('pm')
+        const timeMatch = option.timeSlot.match(/(\d{1,2}):(\d{2})/)
+        
+        if (timeMatch) {
+          let hours = parseInt(timeMatch[1])
+          const minutes = parseInt(timeMatch[2])
+          
+          if (isPM && hours !== 12) {
+            hours += 12
+          } else if (!isPM && hours === 12) {
+            hours = 0
+          }
+          
+          const optionTime = new Date()
+          optionTime.setHours(hours, minutes, 0, 0)
+          isDisabled = isDisabled || optionTime <= now
+        }
+      }
 
       return (
         <Button
           key={option.label}
           variant={isSelected ? "default" : "outline"}
           size="sm"
-          onClick={() => handleTimeSelection(option.minutes)}
-          disabled={(!content.trim() && !isThread) || isOverLimit}
-          className={`flex flex-col h-12 p-2 ${
+          onClick={() => handleTimeSelection(option.timeSlot)}
+          disabled={isDisabled}
+          className={`h-10 px-3 ${
             isSelected
               ? "bg-blue-600 text-white border-blue-600"
+              : isDisabled && isTodaySelected
+              ? "bg-gray-400 text-gray-600 border-gray-400 cursor-not-allowed"
               : "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
           }`}
         >
-          <span className="text-xs font-medium">{option.label}</span>
-          <span className="text-xs opacity-75">{timeString}</span>
+          <span className="text-sm font-medium">{option.label}</span>
         </Button>
       )
     })
@@ -330,11 +394,24 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
               </Badge>
             )}
             <Button
-              onClick={() => handleQuickSchedule(undefined, 0)}
-              disabled={(!content.trim() && !isThread) || isOverLimit}
+              onClick={async () => {
+                setIsPosting(true)
+                setPostStatus("posting")
+                try {
+                  await handleQuickSchedule()
+                  setPostStatus("success")
+                  setTimeout(() => setPostStatus("idle"), 3000)
+                } catch (error) {
+                  setPostStatus("error")
+                  setTimeout(() => setPostStatus("idle"), 3000)
+                } finally {
+                  setIsPosting(false)
+                }
+              }}
+              disabled={(!content.trim() && !isThread) || isOverLimit || isPosting}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
-              Post Now
+              {isPosting ? "Posting..." : postStatus === "success" ? "Posted!" : postStatus === "error" ? "Error" : "Post Now"}
             </Button>
           </div>
 
@@ -411,13 +488,13 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
               <div className="flex items-center gap-2 mb-3">
                 <Clock className="h-4 w-4 text-blue-400" />
                 <h3 className="font-medium">Quick Schedule</h3>
-                {(selectedDay !== null || selectedTimeFromNow !== null) && (
+                {(selectedDay !== null || selectedTimeSlot !== null) && (
                   <Badge variant="secondary" className="text-xs">
-                    {selectedDay !== null && selectedTimeFromNow !== null
+                    {selectedDay !== null && selectedTimeSlot !== null
                       ? "Auto-scheduled!"
                       : selectedDay !== null
                         ? `Day ${selectedDay} selected${selectedIsNextMonth ? " (next month)" : ""} - select time`
-                        : `${selectedTimeFromNow === 0 ? "Posted now" : `${selectedTimeFromNow}m`} selected - select day`}
+                        : `${selectedTimeSlot} selected - select day`}
                   </Badge>
                 )}
               </div>
@@ -432,7 +509,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-2">{generateTimeButtons()}</div>
               </div>
 
-              {selectedDay === null && selectedTimeFromNow === null && (
+              {selectedDay === null && selectedTimeSlot === null && (
                 <div className="pt-3 border-t border-border/50">
                   <p className="text-xs text-muted-foreground text-center">
                     Select both day and time to auto-schedule your tweet
