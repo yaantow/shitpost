@@ -1,7 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { createTwitterClient } from "@/lib/twitter"
 import { TwitterOAuth } from "@/lib/twitter-oauth"
-import { RATE_LIMITS, isRateLimitError, calculateDelay } from "@/lib/rate-limits"
+import { RATE_LIMITS, isRateLimitError, calculateDelay, getDayRange, getMonthRange, remainingDailyAllowance, remainingMonthlyAllowance } from "@/lib/rate-limits"
 import { type NextRequest, NextResponse } from "next/server"
 
 /**
@@ -74,6 +74,59 @@ export async function GET(request: NextRequest) {
           await new Promise(resolve => setTimeout(resolve, delay))
         }
 
+        // Enforce daily/monthly caps per user before posting
+        const now = new Date()
+        const { start: todayStart, end: todayEnd } = getDayRange(now)
+        const { start: monthStart, end: monthEnd } = getMonthRange(now)
+
+        const { count: todayPosted } = await supabase
+          .from("tweets")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", tweet.user_id)
+          .eq("status", "posted")
+          .gte("posted_at", todayStart)
+          .lte("posted_at", todayEnd)
+
+        const { count: todayScheduled } = await supabase
+          .from("tweets")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", tweet.user_id)
+          .eq("status", "scheduled")
+          .gte("scheduled_for", todayStart)
+          .lte("scheduled_for", todayEnd)
+
+        const { count: monthPosted } = await supabase
+          .from("tweets")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", tweet.user_id)
+          .eq("status", "posted")
+          .gte("posted_at", monthStart)
+          .lte("posted_at", monthEnd)
+
+        const { count: monthScheduled } = await supabase
+          .from("tweets")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", tweet.user_id)
+          .eq("status", "scheduled")
+          .gte("scheduled_for", monthStart)
+          .lte("scheduled_for", monthEnd)
+
+        const todayTotal = (todayScheduled || 0) + (todayPosted || 0)
+        const monthTotal = (monthScheduled || 0) + (monthPosted || 0)
+
+        if (remainingDailyAllowance(todayTotal) <= 0) {
+          await supabase.from("tweets").update({ status: "failed" }).eq("id", tweet.id)
+          results.failed++
+          results.errors.push(`Tweet ${tweet.id}: Daily limit reached (${RATE_LIMITS.DAILY_TWEETS_MAX}/day) for user ${tweet.user_id}`)
+          continue
+        }
+        if (remainingMonthlyAllowance(monthTotal) <= 0) {
+          await supabase.from("tweets").update({ status: "failed" }).eq("id", tweet.id)
+          results.failed++
+          results.errors.push(`Tweet ${tweet.id}: Monthly limit reached (${RATE_LIMITS.MONTHLY_TWEETS_MAX}/month) for user ${tweet.user_id}`)
+          continue
+        }
+
         // Get user's Twitter credentials
         const twitterOAuth = new TwitterOAuth()
         const tokens = await twitterOAuth.getValidTokens(tweet.user_id, supabase)
@@ -109,6 +162,28 @@ export async function GET(request: NextRequest) {
           if (threadError || !threadTweets) {
             results.failed++
             results.errors.push(`Tweet ${tweet.id}: Failed to fetch thread tweets`)
+            continue
+          }
+
+          // Validate remaining allowance can cover the entire thread
+          const validThreadLength = threadTweets.filter(t => t.content && t.content.trim()).length
+          const dailyRemaining = remainingDailyAllowance(todayTotal)
+          const monthlyRemaining = remainingMonthlyAllowance(monthTotal)
+
+          if (dailyRemaining < validThreadLength) {
+            for (const t of threadTweets) {
+              await supabase.from("tweets").update({ status: "failed" }).eq("id", t.id)
+            }
+            results.failed += threadTweets.length
+            results.errors.push(`Thread ${tweet.thread_id}: Daily limit insufficient for ${validThreadLength} tweets. Remaining: ${dailyRemaining}/${RATE_LIMITS.DAILY_TWEETS_MAX}`)
+            continue
+          }
+          if (monthlyRemaining < validThreadLength) {
+            for (const t of threadTweets) {
+              await supabase.from("tweets").update({ status: "failed" }).eq("id", t.id)
+            }
+            results.failed += threadTweets.length
+            results.errors.push(`Thread ${tweet.thread_id}: Monthly limit insufficient for ${validThreadLength} tweets. Remaining: ${monthlyRemaining}/${RATE_LIMITS.MONTHLY_TWEETS_MAX}`)
             continue
           }
 

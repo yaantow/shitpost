@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Clock, Plus, Minus, CalendarIcon, Edit, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,10 +30,38 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null)
   const [isPosting, setIsPosting] = useState(false)
   const [postStatus, setPostStatus] = useState<"idle" | "posting" | "success" | "error">("idle")
+  const [limits, setLimits] = useState<{
+    limits: { dailyMax: number; monthlyMax: number }
+    today: { scheduled: number; posted: number; remaining: number }
+    month: { scheduled: number; posted: number; remaining: number }
+  } | null>(null)
+  const [isLoadingLimits, setIsLoadingLimits] = useState(false)
 
   const characterCount = content.length
   const maxCharacters = 280
   const isOverLimit = characterCount > maxCharacters
+
+  const fetchLimits = async () => {
+    try {
+      setIsLoadingLimits(true)
+      const res = await fetch('/api/tweets/limits')
+      if (!res.ok) return
+      const data = await res.json()
+      setLimits(data)
+    } finally {
+      setIsLoadingLimits(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchLimits()
+  }, [])
+
+  useEffect(() => {
+    // Refresh limits when tweets list changes (e.g., after scheduling)
+    fetchLimits()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tweets.length])
 
   const handleQuickSchedule = (day?: number, timeSlot?: string, isNextMonth?: boolean) => {
     if (!content.trim() || isOverLimit) return
@@ -91,10 +119,13 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     setSelectedDay(null)
     setSelectedIsNextMonth(false)
     setSelectedTimeSlot(null)
+    // Refresh remaining counters
+    fetchLimits()
   }
 
-  const handlePostNow = () => {
+  const handlePostNow = async () => {
     if ((!content.trim() && !isThread) || isOverLimit) return
+    if (limits && limits.today.remaining <= 0) return
 
     if (isThread) {
       const validThreadTweets = threadTweets.filter((tweet) => tweet.trim())
@@ -118,6 +149,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     setSelectedDay(null)
     setSelectedIsNextMonth(false)
     setSelectedTimeSlot(null)
+    await fetchLimits()
   }
 
   const executeScheduleWithDateTime = (scheduledDate: Date) => {
@@ -435,11 +467,21 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                   setIsPosting(false)
                 }
               }}
-              disabled={(!content.trim() && !isThread) || isOverLimit || isPosting}
+              disabled={(!content.trim() && !isThread) || isOverLimit || isPosting || (limits ? limits.today.remaining <= 0 : false)}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {isPosting ? "Posting..." : postStatus === "success" ? "Posted!" : postStatus === "error" ? "Error" : "Post Now"}
             </Button>
+            {limits && (
+              <div className="ml-auto text-xs text-muted-foreground flex items-center gap-3">
+                <span>
+                  Today: {Math.max(0, limits.today.remaining)}/{limits.limits.dailyMax}
+                </span>
+                <span>
+                  Month: {Math.max(0, limits.month.remaining)}/{limits.limits.monthlyMax}
+                </span>
+              </div>
+            )}
           </div>
 
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">

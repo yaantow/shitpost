@@ -14,7 +14,7 @@ This guide shows how to deploy your tweet scheduling app on your own server with
 crontab -e
 
 # Add this line (replace with your actual path and domain)
-* * * * * cd /path/to/your/project && curl -X GET "https://yourdomain.com/api/cron/process-tweets" >/dev/null 2>&1
+* * * * * cd /path/to/your/project && curl -X GET "https://ishitpost.com/api/cron/process-tweets" >/dev/null 2>&1
 ```
 
 3. **Save and exit** - cron will run every minute
