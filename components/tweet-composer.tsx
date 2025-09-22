@@ -93,6 +93,33 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     setSelectedTimeSlot(null)
   }
 
+  const handlePostNow = () => {
+    if ((!content.trim() && !isThread) || isOverLimit) return
+
+    if (isThread) {
+      const validThreadTweets = threadTweets.filter((tweet) => tweet.trim())
+      if (validThreadTweets.length === 0) return
+      onAddTweet({
+        content: validThreadTweets[0],
+        status: "published",
+        isThread: true,
+        threadTweets: validThreadTweets,
+      })
+    } else {
+      onAddTweet({
+        content: content.trim(),
+        status: "published",
+      })
+    }
+
+    setContent("")
+    setThreadTweets([""])
+    setIsThread(false)
+    setSelectedDay(null)
+    setSelectedIsNextMonth(false)
+    setSelectedTimeSlot(null)
+  }
+
   const executeScheduleWithDateTime = (scheduledDate: Date) => {
     if (!content.trim() || isOverLimit) return
 
@@ -398,7 +425,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                 setIsPosting(true)
                 setPostStatus("posting")
                 try {
-                  await handleQuickSchedule()
+                  await handlePostNow()
                   setPostStatus("success")
                   setTimeout(() => setPostStatus("idle"), 3000)
                 } catch (error) {

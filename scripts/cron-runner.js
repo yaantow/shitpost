@@ -11,7 +11,7 @@ async function processScheduledTweets() {
   try {
     console.log(`[${new Date().toISOString()}] Processing scheduled tweets...`)
     
-    const response = await fetch(`${BASE_URL}/api/cron/process-tweets`, {
+    const response = await fetch(`https://www.ishitpost.com/api/cron/process-tweets`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
