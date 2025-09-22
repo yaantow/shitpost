@@ -365,18 +365,25 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     // Fixed time slots - two sets of 5 options each
       const timeOptions = [
         // First set
-        { label: "7:30am", timeSlot: "07:30am" },
-        { label: "9:00am", timeSlot: "09:00am" },
-        { label: "11:59am", timeSlot: "11:59am" },
-        { label: "2:00pm", timeSlot: "02:00pm" },
-        { label: "11:44pm", timeSlot: "11:44pm" },
-        
+        { label: "12:05am", timeSlot: "12:05am" },
+        { label: "4:00am", timeSlot: "4:00am" },
+        { label: "6:00am", timeSlot: "6:00am" },
+        { label: "8:00am", timeSlot: "8:00am" },
+        { label: "10:00am", timeSlot: "10:00am" },
+      
         // Second set      
-        { label: "4:00pm", timeSlot: "04:00pm" },
-        { label: "3:45pm", timeSlot: "03:45pm" },
-        { label: "6:30pm", timeSlot: "06:30pm" },
-        { label: "9:00pm", timeSlot: "09:00pm" },
-        { label: "10:15pm", timeSlot: "10:15pm" },
+        { label: "12:00pm", timeSlot: "12:00pm" },
+        { label: "1:00pm", timeSlot: "1:00pm" },
+        { label: "2:25pm", timeSlot: "2:25pm" },
+        { label: "3:15pm", timeSlot: "3:15pm" },
+        { label: "4:00pm", timeSlot: "4:00pm" },
+      
+        // Third set      
+        { label: "7:00pm", timeSlot: "7:00pm" },
+        { label: "8:35pm", timeSlot: "8:35pm" },
+        { label: "9:06pm", timeSlot: "9:06pm" },
+        { label: "10:03pm", timeSlot: "10:03pm" },
+        { label: "11:00pm", timeSlot: "11:00pm" },
       ]
 
     // Check if "Today" is selected
@@ -485,7 +492,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
           </div>
 
           <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               {!isThread ? (
                 <div className="space-y-4">
                   <div className="space-y-3">
@@ -631,7 +638,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
         </div>
 
         <div className="lg:col-span-1">
-          <Card className="border-border/50 bg-card/50 backdrop-blur-sm sticky top-6">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm sticky top-4">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-3">
                 <CalendarIcon className="h-4 w-4 text-blue-400" />

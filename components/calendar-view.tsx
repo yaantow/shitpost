@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { Tweet } from "@/app/page"
+import type { Tweet } from "@/types/tweet"
 
 interface CalendarViewProps {
   tweets: Tweet[]
@@ -148,34 +148,13 @@ export function CalendarView({ tweets, onUpdateTweet, onAddTweet, onDeleteTweet 
 
   return (
     <div className="space-y-6">
-      {/* Calendar Header */}
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              {monthName} {year}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")} className="h-8 w-8 p-0">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="text-xs">
-                Today
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigateMonth("next")} className="h-8 w-8 p-0">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+
 
       {/* Calendar Grid */}
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-        <CardContent className="p-6">
+        <CardContent>
           {/* Day Headers */}
-          <div className="grid grid-cols-7 gap-1 mb-4">
+          <div className="grid grid-cols-7 gap-1 mb-2">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
               <div key={day} className="p-2 text-center text-sm font-medium text-muted-foreground">
                 {day}
@@ -239,6 +218,28 @@ export function CalendarView({ tweets, onUpdateTweet, onAddTweet, onDeleteTweet 
             })}
           </div>
         </CardContent>
+      </Card>
+{/* Calendar Header */}
+            <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              {monthName} {year}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigateMonth("prev")} className="h-8 w-8 p-0">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="text-xs">
+                Today
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigateMonth("next")} className="h-8 w-8 p-0">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
       </Card>
 
       <Dialog open={!!selectedDate} onOpenChange={() => setSelectedDate(null)}>

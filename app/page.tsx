@@ -161,8 +161,7 @@ export default function TweetScheduler() {
           {/* Header */}
           <div className="mb-8 flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-foreground mb-2">ShitPost</h1>
-              <p className="text-muted-foreground text-lg">Rapid-fire tweet composition and scheduling</p>
+              <h1 className="text-2xl font-bold text-foreground">ShitPost</h1>
             </div>
             {user ? (
               <ProfileMenu />
@@ -175,7 +174,7 @@ export default function TweetScheduler() {
 
           {/* Navigation Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-2">
               <TabsTrigger value="compose" className="flex items-center gap-2">
                 <PlusCircle className="h-4 w-4" />
                 Compose
