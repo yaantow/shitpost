@@ -66,7 +66,7 @@ module.exports = {
 pm2 start ecosystem.config.js
 
 # Or start individually
-pm2 start npm --name "shitpost-app" -- start
+pm2 start npm --name "shitpost-app" -- start 3005
 pm2 start scripts/cron-runner.js --name "shitpost-cron"
 ```
 
