@@ -4,7 +4,7 @@ module.exports = {
       name: 'shitpost-app',
       script: 'npm',
       args: 'start',
-      cwd: '/path/to/your/project',
+      cwd: '/var/www/shitpost',
       instances: 1,
       autorestart: true,
       watch: false,
@@ -16,7 +16,7 @@ module.exports = {
     {
       name: 'shitpost-cron',
       script: 'scripts/cron-runner.js',
-      cwd: '/path/to/your/project',
+      cwd: '/var/www/shitpost/scripts',
       instances: 1,
       autorestart: true,
       watch: false,
