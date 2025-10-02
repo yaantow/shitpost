@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
 import { createTwitterClient } from "@/lib/twitter"
-import { TwitterOAuth } from "@/lib/twitter-oauth"
 import { RATE_LIMITS, getDayRange, getMonthRange, remainingDailyAllowance, remainingMonthlyAllowance } from "@/lib/rate-limits"
 import { type NextRequest, NextResponse } from "next/server"
 
@@ -16,12 +15,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get user's Twitter credentials from the database
-    const twitterOAuth = new TwitterOAuth()
-    const tokens = await twitterOAuth.getValidTokens(user.id)
+    // Use Twitter credentials directly from environment variables
+    const twitterCredentials = {
+      accessToken: process.env.TWITTER_ACCESS_TOKEN!,
+      accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET!,
+    }
 
-    if (!tokens) {
-      return NextResponse.json({ error: "Twitter account not connected. Please connect your Twitter account first." }, { status: 400 })
+    if (!twitterCredentials.accessToken || !twitterCredentials.accessTokenSecret) {
+      return NextResponse.json({ error: "Twitter credentials not configured" }, { status: 500 })
     }
 
     const body = await request.json()
@@ -124,10 +125,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create Twitter client using stored tokens
-    const twitterClient = await createTwitterClient({
-      accessToken: tokens.access_token,
-    })
+    // Create Twitter client using environment credentials
+    const twitterClient = await createTwitterClient(twitterCredentials)
 
     let twitterResponse
 

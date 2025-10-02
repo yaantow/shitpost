@@ -3,14 +3,30 @@ import type { TweetImage } from '@/types/tweet'
 
 export interface TwitterCredentials {
   accessToken: string
+  accessTokenSecret?: string // For OAuth 1.0a media uploads
 }
 
 export class TwitterClient {
   private client: TwitterApi
+  private mediaClient?: TwitterApi // OAuth 1.0a client for media uploads
 
   constructor(credentials: TwitterCredentials) {
-    // Use OAuth 2.0 User Context authentication
-    this.client = new TwitterApi(credentials.accessToken)
+    // If OAuth 1.0a credentials are provided, use them for BOTH v1.1 media and v2 tweets
+    if (credentials.accessTokenSecret) {
+      const appKey = process.env.TWITTER_API_KEY!
+      const appSecret = process.env.TWITTER_API_SECRET!
+      this.mediaClient = new TwitterApi({
+        appKey,
+        appSecret,
+        accessToken: credentials.accessToken,
+        accessSecret: credentials.accessTokenSecret,
+      })
+      // Use the same OAuth 1.0a client for v2 posting as well
+      this.client = this.mediaClient
+    } else {
+      // Fallback: OAuth 2.0 User Context (works for text tweets only)
+      this.client = new TwitterApi(credentials.accessToken)
+    }
   }
 
   async postTweet(text: string, images?: TweetImage[]): Promise<{ id: string; text: string }> {
@@ -18,6 +34,7 @@ export class TwitterClient {
       let mediaIds: string[] = []
       
       console.log('Twitter postTweet called with:', { text, images })
+      console.log('Twitter client initialized:', !!this.client)
       
       if (images && images.length > 0) {
         console.log('Uploading images to Twitter...')
@@ -30,8 +47,11 @@ export class TwitterClient {
       if (mediaIds.length > 0) {
         tweetData.media_ids = mediaIds
         console.log('Tweet data with media:', tweetData)
+      } else {
+        console.log('Tweet data without media:', tweetData)
       }
 
+      console.log('About to call Twitter API v2.tweet with:', tweetData)
       const tweet = await this.client.v2.tweet(tweetData)
       console.log('Tweet posted successfully:', tweet)
       return {
@@ -40,7 +60,12 @@ export class TwitterClient {
       }
     } catch (error) {
       console.error('Error posting tweet:', error)
-      throw new Error('Failed to post tweet to Twitter')
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error: error
+      })
+      throw new Error(`Failed to post tweet to Twitter: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -118,7 +143,11 @@ export class TwitterClient {
         }
         
         // Upload to Twitter using v1.1 media upload endpoint
-        const uploadResponse = await this.client.v1.uploadMedia(imageData, {
+        // Use OAuth 1.0a client for media uploads if available, otherwise fall back to OAuth 2.0
+        const clientToUse = this.mediaClient || this.client
+        console.log('Using client for media upload:', this.mediaClient ? 'OAuth 1.0a' : 'OAuth 2.0')
+        
+        const uploadResponse = await clientToUse.v1.uploadMedia(imageData, {
           mimeType: this.getMimeTypeFromUrl(image.url),
           additionalOwners: undefined,
         })
@@ -147,6 +176,11 @@ export class TwitterClient {
       return mediaIds
     } catch (error) {
       console.error('Error uploading images to Twitter:', error)
+      console.error('Image upload error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        error: error
+      })
       throw new Error(`Failed to upload images to Twitter: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }

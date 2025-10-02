@@ -1,6 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { createTwitterClient } from "@/lib/twitter"
-import { TwitterOAuth } from "@/lib/twitter-oauth"
 import { RATE_LIMITS, isRateLimitError, calculateDelay, getDayRange, getMonthRange, remainingDailyAllowance, remainingMonthlyAllowance } from "@/lib/rate-limits"
 import { type NextRequest, NextResponse } from "next/server"
 
@@ -127,26 +126,25 @@ export async function GET(request: NextRequest) {
           continue
         }
 
-        // Get user's Twitter credentials
-        const twitterOAuth = new TwitterOAuth()
-        const tokens = await twitterOAuth.getValidTokens(tweet.user_id, supabase)
+        // Use Twitter credentials directly from environment variables
+        const twitterCredentials = {
+          accessToken: process.env.TWITTER_ACCESS_TOKEN!,
+          accessTokenSecret: process.env.TWITTER_ACCESS_TOKEN_SECRET!,
+        }
 
-        if (!tokens) {
-          // Mark tweet as failed if no valid tokens
+        if (!twitterCredentials.accessToken || !twitterCredentials.accessTokenSecret) {
           await supabase
             .from("tweets")
             .update({ status: "failed" })
             .eq("id", tweet.id)
 
           results.failed++
-          results.errors.push(`Tweet ${tweet.id}: No valid Twitter tokens`)
+          results.errors.push(`Tweet ${tweet.id}: Twitter credentials not configured`)
           continue
         }
 
         // Create Twitter client
-        const twitterClient = await createTwitterClient({
-          accessToken: tokens.access_token,
-        })
+        const twitterClient = await createTwitterClient(twitterCredentials)
 
         let twitterResponse: any
 
