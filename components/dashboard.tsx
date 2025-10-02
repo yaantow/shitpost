@@ -5,7 +5,7 @@ import { Calendar, Clock, BarChart3, TrendingUp, FileText, CheckCircle } from "l
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import type { Tweet } from "@/app/page"
+import type { Tweet } from "@/types/tweet"
 
 interface DashboardProps {
   tweets: Tweet[]

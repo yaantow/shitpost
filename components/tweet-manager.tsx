@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search, Filter, Trash2 } from "lucide-react"
+import { Search, Filter, Trash2, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { ImageUpload } from "@/components/image-upload"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   AlertDialog,
@@ -22,6 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+// @ts-ignore-next-line
 import type { Tweet } from "@/app/page"
 
 interface TweetManagerProps {
@@ -39,6 +41,8 @@ export function TweetManager({ tweets, onUpdateTweet, onDeleteTweet }: TweetMana
   const [editDate, setEditDate] = useState("")
   const [editTime, setEditTime] = useState("")
   const [editStatus, setEditStatus] = useState<Tweet["status"]>("scheduled")
+  const [editImages, setEditImages] = useState<Tweet["images"]>([])
+  const [isEditImageDialogOpen, setIsEditImageDialogOpen] = useState(false)
 
   const filteredAndSortedTweets = useMemo(() => {
     let filtered = tweets
@@ -84,6 +88,7 @@ export function TweetManager({ tweets, onUpdateTweet, onDeleteTweet }: TweetMana
     setEditingTweet(tweet)
     setEditContent(tweet.content)
     setEditStatus(tweet.status)
+    setEditImages(tweet.images || [])
     const date = new Date(tweet.scheduledDate)
     setEditDate(date.toISOString().split("T")[0])
     setEditTime(date.toTimeString().slice(0, 5))
@@ -97,6 +102,7 @@ export function TweetManager({ tweets, onUpdateTweet, onDeleteTweet }: TweetMana
       content: editContent,
       scheduledDate: newDateTime,
       status: editStatus,
+      images: editImages.length > 0 ? editImages : undefined,
     })
 
     setEditingTweet(null)
@@ -108,6 +114,7 @@ export function TweetManager({ tweets, onUpdateTweet, onDeleteTweet }: TweetMana
     setEditDate("")
     setEditTime("")
     setEditStatus("scheduled")
+    setEditImages([])
   }
 
   const formatDateTime = (date: Date) => {
@@ -244,7 +251,30 @@ export function TweetManager({ tweets, onUpdateTweet, onDeleteTweet }: TweetMana
                             Thread
                           </Badge>
                         )}
+                        {tweet.images && tweet.images.length > 0 && (
+                          <div className="flex items-center gap-1">
+                            <ImageIcon className="h-3 w-3" />
+                            <span>{tweet.images.length}</span>
+                          </div>
+                        )}
                       </div>
+                      {tweet.images && tweet.images.length > 0 && (
+                        <div className="flex gap-1 mt-2">
+                          {tweet.images.slice(0, 3).map((image: any, index: number) => (
+                            <img
+                              key={image.id}
+                              src={image.url}
+                              alt={image.altText || 'Tweet image'}
+                              className="w-8 h-8 object-cover rounded border"
+                            />
+                          ))}
+                          {tweet.images.length > 3 && (
+                            <div className="w-8 h-8 bg-muted rounded border flex items-center justify-center text-xs">
+                              +{tweet.images.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">{formatDateTime(tweet.scheduledDate)}</div>
@@ -338,6 +368,29 @@ export function TweetManager({ tweets, onUpdateTweet, onDeleteTweet }: TweetMana
             </div>
 
             <div>
+              <div className="flex items-center justify-between">
+                <Label>Images</Label>
+                <div className="flex items-center gap-2">
+                  {editImages && editImages.length > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <ImageIcon className="h-3 w-3" />
+                      <span>{editImages.length}</span>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditImageDialogOpen(true)}
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div>
               <Label>Status</Label>
               <Select value={editStatus} onValueChange={(value: Tweet["status"]) => setEditStatus(value)}>
                 <SelectTrigger className="mt-1">
@@ -384,6 +437,28 @@ export function TweetManager({ tweets, onUpdateTweet, onDeleteTweet }: TweetMana
                 disabled={!editContent.trim() || editContent.length > 280}
               >
                 Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Image Upload Dialog */}
+      <Dialog open={isEditImageDialogOpen} onOpenChange={setIsEditImageDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Images</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ImageUpload
+              images={editImages || []}
+              onImagesChange={setEditImages}
+              maxImages={4}
+              disabled={false}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsEditImageDialogOpen(false)}>
+                Done
               </Button>
             </div>
           </div>

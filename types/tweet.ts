@@ -6,6 +6,14 @@ export interface Tweet {
   createdAt: Date
   isThread?: boolean
   threadTweets?: string[]
+  images?: TweetImage[]
+}
+
+export interface TweetImage {
+  id: string
+  url: string
+  altText?: string
+  order: number
 }
 
 export interface DatabaseTweet {
@@ -27,4 +35,5 @@ export interface TweetInput {
   status: "scheduled" | "published" | "draft"
   isThread?: boolean
   threadTweets?: string[]
+  images?: TweetImage[]
 }

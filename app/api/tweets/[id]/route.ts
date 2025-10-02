@@ -15,13 +15,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const body = await request.json()
-    const { content, scheduled_for, status } = body
+    const { content, scheduled_for, status, images } = body
 
     const updates: any = { updated_at: new Date().toISOString() }
 
     if (content !== undefined) updates.content = content
     if (scheduled_for !== undefined) updates.scheduled_for = scheduled_for
     if (status !== undefined) updates.status = status
+    if (images !== undefined) updates.images = images
 
     const { data: tweet, error } = await supabase
       .from("tweets")

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { content, scheduled_for, status = "draft", thread_tweets } = body
+    const { content, scheduled_for, status = "draft", thread_tweets, images } = body
 
     if (!content?.trim()) {
       return NextResponse.json({ error: "Content is required" }, { status: 400 })
@@ -139,6 +139,7 @@ export async function POST(request: NextRequest) {
             thread_id: i === 0 ? null : threadId,
             scheduled_for,
             status,
+            images: i === 0 ? (images || null) : null, // Only first tweet gets images
           })
           .select()
           .single()
@@ -165,6 +166,7 @@ export async function POST(request: NextRequest) {
           content: content.trim(),
           scheduled_for,
           status,
+          images: images || null,
         })
         .select()
         .single()

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { tweetId, content, isThread, threadTweets } = body
+    const { tweetId, content, isThread, threadTweets, images } = body
 
     if (!tweetId) {
       return NextResponse.json({ error: "Tweet ID is required" }, { status: 400 })
@@ -111,10 +111,10 @@ export async function POST(request: NextRequest) {
     if (isThread && threadTweets && threadTweets.length > 1) {
       // Post thread
       const validThreadTweets = threadTweets.filter((tweet: string) => tweet.trim())
-      twitterResponse = await twitterClient.postThread(validThreadTweets)
+      twitterResponse = await twitterClient.postThread(validThreadTweets, images)
     } else {
       // Post single tweet
-      twitterResponse = await twitterClient.postTweet(content)
+      twitterResponse = await twitterClient.postTweet(content, images)
     }
 
     // Update tweet in database with Twitter ID and posted status

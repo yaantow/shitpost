@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Clock, Plus, Minus, CalendarIcon, Edit, X } from "lucide-react"
+import { Clock, Plus, Minus, CalendarIcon, Edit, X, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { Tweet, TweetInput } from "@/types/tweet"
+import { ImageUpload } from "@/components/image-upload"
+import type { Tweet, TweetInput, TweetImage } from "@/types/tweet"
 
 interface TweetComposerProps {
   onAddTweet: (tweet: TweetInput) => void
@@ -21,15 +22,19 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
   const [content, setContent] = useState("")
   const [isThread, setIsThread] = useState(false)
   const [threadTweets, setThreadTweets] = useState<string[]>([""])
+  const [images, setImages] = useState<TweetImage[]>([])
   const [editingTweet, setEditingTweet] = useState<Tweet | null>(null)
   const [editContent, setEditContent] = useState("")
   const [editDate, setEditDate] = useState("")
   const [editTime, setEditTime] = useState("")
+  const [editImages, setEditImages] = useState<TweetImage[]>([])
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [selectedIsNextMonth, setSelectedIsNextMonth] = useState(false)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null)
   const [isPosting, setIsPosting] = useState(false)
   const [postStatus, setPostStatus] = useState<"idle" | "posting" | "success" | "error">("idle")
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false)
+  const [isEditImageDialogOpen, setIsEditImageDialogOpen] = useState(false)
   const [limits, setLimits] = useState<{
     limits: { dailyMax: number; monthlyMax: number }
     today: { scheduled: number; posted: number; remaining: number }
@@ -37,7 +42,8 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
   } | null>(null)
   const [isLoadingLimits, setIsLoadingLimits] = useState(false)
 
-  const characterCount = content.length
+  const imageCharacterCost = images.length * 24 // Each image costs 24 characters on Twitter
+  const characterCount = content.length + imageCharacterCost
   const maxCharacters = 280
   const isOverLimit = characterCount > maxCharacters
 
@@ -104,17 +110,20 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
         status: "scheduled",
         isThread: true,
         threadTweets: validThreadTweets,
+        images: images.length > 0 ? images : undefined,
       })
     } else {
       onAddTweet({
         content: content.trim(),
         scheduledDate,
         status: "scheduled",
+        images: images.length > 0 ? images : undefined,
       })
     }
 
     setContent("")
     setThreadTweets([""])
+    setImages([])
     setIsThread(false)
     setSelectedDay(null)
     setSelectedIsNextMonth(false)
@@ -135,16 +144,19 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
         status: "published",
         isThread: true,
         threadTweets: validThreadTweets,
+        images: images.length > 0 ? images : undefined,
       })
     } else {
       onAddTweet({
         content: content.trim(),
         status: "published",
+        images: images.length > 0 ? images : undefined,
       })
     }
 
     setContent("")
     setThreadTweets([""])
+    setImages([])
     setIsThread(false)
     setSelectedDay(null)
     setSelectedIsNextMonth(false)
@@ -163,17 +175,20 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
         status: "scheduled",
         isThread: true,
         threadTweets: validThreadTweets,
+        images: images.length > 0 ? images : undefined,
       })
     } else {
       onAddTweet({
         content: content.trim(),
         scheduledDate,
         status: "scheduled",
+        images: images.length > 0 ? images : undefined,
       })
     }
 
     setContent("")
     setThreadTweets([""])
+    setImages([])
     setIsThread(false)
     setSelectedDay(null)
     setSelectedIsNextMonth(false)
@@ -316,6 +331,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
   const handleEditTodayPost = (tweet: Tweet) => {
     setEditingTweet(tweet)
     setEditContent(tweet.content)
+    setEditImages(tweet.images || [])
     const date = new Date(tweet.scheduledDate)
     setEditDate(date.toISOString().split("T")[0])
     setEditTime(date.toTimeString().slice(0, 5))
@@ -328,12 +344,14 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     onUpdateTweet(editingTweet.id, {
       content: editContent,
       scheduledDate: newDateTime,
+      images: editImages.length > 0 ? editImages : undefined,
     })
 
     setEditingTweet(null)
     setEditContent("")
     setEditDate("")
     setEditTime("")
+    setEditImages([])
   }
 
   const generateDayButtons = () => {
@@ -543,7 +561,25 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                       className="min-h-[100px] resize-none text-lg border-0 bg-transparent focus-visible:ring-0 p-0"
                       maxLength={300}
                     />
-                    <div className="flex justify-end">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        {images.length > 0 && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <ImageIcon className="h-3 w-3" />
+                            <span>{images.length}</span>
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsImageDialogOpen(true)}
+                          disabled={isPosting}
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <div className={`text-sm font-medium ${getCharacterCountColor(characterCount)}`}>
                         {characterCount}/{maxCharacters}
                       </div>
@@ -577,7 +613,27 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                         className="min-h-[80px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0"
                         maxLength={280}
                       />
-                      <div className="flex justify-end">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          {index === 0 && images.length > 0 && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <ImageIcon className="h-3 w-3" />
+                              <span>{images.length}</span>
+                            </div>
+                          )}
+                          {index === 0 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsImageDialogOpen(true)}
+                              disabled={isPosting}
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                            >
+                              <ImageIcon className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                         <div className={`text-sm font-medium ${getCharacterCountColor(tweet.length)}`}>
                           {tweet.length}/280
                         </div>
@@ -726,6 +782,50 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
         </div>
       </div>
 
+      {/* Image Upload Dialog */}
+      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Images</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ImageUpload
+              images={images}
+              onImagesChange={setImages}
+              maxImages={4}
+              disabled={isPosting}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsImageDialogOpen(false)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Image Upload Dialog */}
+      <Dialog open={isEditImageDialogOpen} onOpenChange={setIsEditImageDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Images</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ImageUpload
+              images={editImages}
+              onImagesChange={setEditImages}
+              maxImages={4}
+              disabled={false}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsEditImageDialogOpen(false)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!editingTweet} onOpenChange={() => setEditingTweet(null)}>
         <DialogContent>
           <DialogHeader>
@@ -742,6 +842,28 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                 rows={4}
               />
               <div className="text-xs text-muted-foreground mt-1">{editContent.length}/280 characters</div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <Label>Images</Label>
+                <div className="flex items-center gap-2">
+                  {editImages.length > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <ImageIcon className="h-3 w-3" />
+                      <span>{editImages.length}</span>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditImageDialogOpen(true)}
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <ImageIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
