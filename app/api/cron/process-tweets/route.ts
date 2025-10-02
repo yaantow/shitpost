@@ -189,7 +189,10 @@ export async function GET(request: NextRequest) {
 
           // Post thread
           const threadContents = threadTweets.map(t => t.content)
-          twitterResponse = await twitterClient.postThread(threadContents)
+          // Get images from the first tweet in the thread (Twitter limitation)
+          const threadImages = threadTweets[0]?.images || null
+          console.log(`Processing scheduled thread ${tweet.thread_id} with images:`, threadImages)
+          twitterResponse = await twitterClient.postThread(threadContents, threadImages)
 
           // Update all tweets in the thread
           const twitterIds = Array.isArray(twitterResponse) ? twitterResponse.map((t: any) => t.id) : [twitterResponse.id]
@@ -205,7 +208,8 @@ export async function GET(request: NextRequest) {
           }
         } else {
           // Post single tweet
-          twitterResponse = await twitterClient.postTweet(tweet.content)
+          console.log(`Processing scheduled tweet ${tweet.id} with images:`, tweet.images)
+          twitterResponse = await twitterClient.postTweet(tweet.content, tweet.images)
 
           // Update tweet status
           await supabase
