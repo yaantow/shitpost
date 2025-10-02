@@ -192,7 +192,21 @@ export async function GET(request: NextRequest) {
           // Get images from the first tweet in the thread (Twitter limitation)
           const threadImages = threadTweets[0]?.images || null
           console.log(`Processing scheduled thread ${tweet.thread_id} with images:`, threadImages)
-          twitterResponse = await twitterClient.postThread(threadContents, threadImages)
+          try {
+            twitterResponse = await twitterClient.postThread(threadContents, threadImages)
+          } catch (error) {
+            console.error(`Failed to post scheduled thread ${tweet.thread_id}:`, error)
+            // Mark all tweets in the thread as failed
+            for (const threadTweet of threadTweets) {
+              await supabase
+                .from("tweets")
+                .update({ status: "failed" })
+                .eq("id", threadTweet.id)
+            }
+            results.failed += threadTweets.length
+            results.errors.push(`Thread ${tweet.thread_id}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            continue
+          }
 
           // Update all tweets in the thread
           const twitterIds = Array.isArray(twitterResponse) ? twitterResponse.map((t: any) => t.id) : [twitterResponse.id]
@@ -209,7 +223,18 @@ export async function GET(request: NextRequest) {
         } else {
           // Post single tweet
           console.log(`Processing scheduled tweet ${tweet.id} with images:`, tweet.images)
-          twitterResponse = await twitterClient.postTweet(tweet.content, tweet.images)
+          try {
+            twitterResponse = await twitterClient.postTweet(tweet.content, tweet.images)
+          } catch (error) {
+            console.error(`Failed to post scheduled tweet ${tweet.id}:`, error)
+            await supabase
+              .from("tweets")
+              .update({ status: "failed" })
+              .eq("id", tweet.id)
+            results.failed++
+            results.errors.push(`Tweet ${tweet.id}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+            continue
+          }
 
           // Update tweet status
           await supabase

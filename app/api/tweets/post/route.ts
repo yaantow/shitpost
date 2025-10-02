@@ -131,13 +131,33 @@ export async function POST(request: NextRequest) {
 
     let twitterResponse
 
-    if (isThread && threadTweets && threadTweets.length > 1) {
-      // Post thread
-      const validThreadTweets = threadTweets.filter((tweet: string) => tweet.trim())
-      twitterResponse = await twitterClient.postThread(validThreadTweets, tweetImages)
-    } else {
-      // Post single tweet
-      twitterResponse = await twitterClient.postTweet(content, tweetImages)
+    try {
+      if (isThread && threadTweets && threadTweets.length > 1) {
+        // Post thread
+        const validThreadTweets = threadTweets.filter((tweet: string) => tweet.trim())
+        console.log('Posting thread with images:', { threadTweets: validThreadTweets.length, images: tweetImages?.length || 0 })
+        twitterResponse = await twitterClient.postThread(validThreadTweets, tweetImages)
+      } else {
+        // Post single tweet
+        console.log('Posting single tweet with images:', { content: content.substring(0, 50) + '...', images: tweetImages?.length || 0 })
+        twitterResponse = await twitterClient.postTweet(content, tweetImages)
+      }
+    } catch (twitterError) {
+      console.error('Twitter API error:', twitterError)
+      
+      // Update tweet status to failed
+      await supabase
+        .from("tweets")
+        .update({
+          status: "failed",
+        })
+        .eq("id", tweetId)
+        .eq("user_id", user.id)
+      
+      return NextResponse.json(
+        { error: `Failed to post to Twitter: ${twitterError instanceof Error ? twitterError.message : 'Unknown error'}` },
+        { status: 500 }
+      )
     }
 
     // Update tweet in database with Twitter ID and posted status

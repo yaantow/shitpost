@@ -28,7 +28,7 @@ export class TwitterClient {
 
       const tweetData: any = { text }
       if (mediaIds.length > 0) {
-        tweetData.media = { media_ids: mediaIds }
+        tweetData.media_ids = mediaIds
         console.log('Tweet data with media:', tweetData)
       }
 
@@ -64,7 +64,7 @@ export class TwitterClient {
 
         // Only attach images to the first tweet
         if (i === 0 && mediaIds.length > 0) {
-          tweetData.media = { media_ids: mediaIds }
+          tweetData.media_ids = mediaIds
         }
 
         const tweet = await this.client.v2.tweet(tweetData)
@@ -92,16 +92,30 @@ export class TwitterClient {
       for (const image of images) {
         console.log('Processing image:', image.url)
         
+        // Validate image URL
+        if (!image.url || !image.url.startsWith('http')) {
+          throw new Error(`Invalid image URL: ${image.url}`)
+        }
+        
         // Fetch the image from S3 URL
         const response = await fetch(image.url)
         if (!response.ok) {
-          throw new Error(`Failed to fetch image from ${image.url}`)
+          throw new Error(`Failed to fetch image from ${image.url}: ${response.status} ${response.statusText}`)
         }
         
         const imageBuffer = await response.arrayBuffer()
         const imageData = Buffer.from(imageBuffer)
         
         console.log('Image fetched, size:', imageData.length, 'bytes')
+        
+        // Validate image size (Twitter has limits)
+        if (imageData.length === 0) {
+          throw new Error('Image file is empty')
+        }
+        
+        if (imageData.length > 5 * 1024 * 1024) { // 5MB limit
+          throw new Error('Image file too large (max 5MB)')
+        }
         
         // Upload to Twitter using v1.1 media upload endpoint
         const uploadResponse = await this.client.v1.uploadMedia(imageData, {
@@ -111,10 +125,21 @@ export class TwitterClient {
         
         console.log('Twitter upload response:', uploadResponse)
         
-        // The response should have a media_id_string property
-        const mediaId = (uploadResponse as any).media_id_string || uploadResponse
-        mediaIds.push(mediaId)
+        // Extract media ID from response
+        let mediaId: string
+        if (typeof uploadResponse === 'string') {
+          mediaId = uploadResponse
+        } else if (uploadResponse && typeof uploadResponse === 'object' && 'media_id_string' in uploadResponse) {
+          mediaId = (uploadResponse as any).media_id_string
+        } else {
+          throw new Error(`Unexpected upload response format: ${JSON.stringify(uploadResponse)}`)
+        }
         
+        if (!mediaId) {
+          throw new Error('No media ID returned from Twitter upload')
+        }
+        
+        mediaIds.push(mediaId)
         console.log('Media ID added:', mediaId)
       }
       
@@ -122,7 +147,7 @@ export class TwitterClient {
       return mediaIds
     } catch (error) {
       console.error('Error uploading images to Twitter:', error)
-      throw new Error('Failed to upload images to Twitter')
+      throw new Error(`Failed to upload images to Twitter: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
