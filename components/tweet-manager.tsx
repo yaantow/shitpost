@@ -32,7 +32,7 @@ interface TweetManagerProps {
 
 export function TweetManager({ tweets, onUpdateTweet, onDeleteTweet }: TweetManagerProps) {
   const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"all" | Tweet["status"]>("all")
+  const [statusFilter, setStatusFilter] = useState<"all" | Tweet["status"]>("scheduled")
   const [sortBy, setSortBy] = useState<"scheduled" | "created" | "content">("scheduled")
   const [editingTweet, setEditingTweet] = useState<Tweet | null>(null)
   const [editContent, setEditContent] = useState("")

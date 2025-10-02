@@ -279,6 +279,40 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
       .sort((a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime())
   }
 
+  const hasScheduledTweetAtTime = (day: number, timeSlot: string, isNextMonth: boolean) => {
+    const targetDate = new Date()
+    if (isNextMonth) {
+      targetDate.setMonth(targetDate.getMonth() + 1)
+    }
+    targetDate.setDate(day)
+    
+    // Parse time slot to get hours and minutes
+    const timeSlotLower = timeSlot.toLowerCase()
+    const isPM = timeSlotLower.includes('pm')
+    const timeMatch = timeSlot.match(/(\d{1,2}):(\d{2})/)
+    
+    if (timeMatch) {
+      let hours = parseInt(timeMatch[1])
+      const minutes = parseInt(timeMatch[2])
+      
+      if (isPM && hours !== 12) {
+        hours += 12
+      } else if (!isPM && hours === 12) {
+        hours = 0
+      }
+      
+      targetDate.setHours(hours, minutes, 0, 0)
+    }
+
+    // Check if any scheduled tweet matches this exact date and time
+    return tweets.some(tweet => {
+      if (tweet.status !== "scheduled") return false
+      
+      const tweetDate = new Date(tweet.scheduledDate)
+      return tweetDate.getTime() === targetDate.getTime()
+    })
+  }
+
   const handleEditTodayPost = (tweet: Tweet) => {
     setEditingTweet(tweet)
     setEditContent(tweet.content)
@@ -392,6 +426,9 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     return timeOptions.map((option) => {
       const isSelected = selectedTimeSlot === option.timeSlot
       
+      // Check if this time slot has a scheduled tweet
+      const hasScheduledTweet = selectedDay !== null && hasScheduledTweetAtTime(selectedDay, option.timeSlot, selectedIsNextMonth)
+      
       // If today is selected, check if the time has passed
       let isDisabled = (!content.trim() && !isThread) || isOverLimit
       if (isTodaySelected) {
@@ -423,7 +460,7 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
           size="sm"
           onClick={() => handleTimeSelection(option.timeSlot)}
           disabled={isDisabled}
-          className={`h-10 px-3 ${
+          className={`h-10 px-3 relative ${
             isSelected
               ? "bg-blue-600 text-white border-blue-600"
               : isDisabled && isTodaySelected
@@ -432,6 +469,9 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
           }`}
         >
           <span className="text-sm font-medium">{option.label}</span>
+          {hasScheduledTweet && (
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow-sm"></div>
+          )}
         </Button>
       )
     })
