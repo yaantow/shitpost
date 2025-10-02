@@ -31,6 +31,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Tweet ID is required" }, { status: 400 })
     }
 
+    // Fetch the tweet from database to get the images
+    const { data: tweetData, error: tweetError } = await supabase
+      .from("tweets")
+      .select("images")
+      .eq("id", tweetId)
+      .eq("user_id", user.id)
+      .single()
+
+    if (tweetError) {
+      return NextResponse.json({ error: "Tweet not found" }, { status: 404 })
+    }
+
+    // Use images from database if not provided in request body
+    const tweetImages = images || tweetData.images
+    
+    // Debug logging
+    console.log('Posting tweet with images:', {
+      tweetId,
+      imagesFromRequest: images,
+      imagesFromDatabase: tweetData.images,
+      finalImages: tweetImages
+    })
+
     // Enforce daily/monthly caps before immediate post
     const now = new Date()
     const { start: todayStart, end: todayEnd } = getDayRange(now)
@@ -111,10 +134,10 @@ export async function POST(request: NextRequest) {
     if (isThread && threadTweets && threadTweets.length > 1) {
       // Post thread
       const validThreadTweets = threadTweets.filter((tweet: string) => tweet.trim())
-      twitterResponse = await twitterClient.postThread(validThreadTweets, images)
+      twitterResponse = await twitterClient.postThread(validThreadTweets, tweetImages)
     } else {
       // Post single tweet
-      twitterResponse = await twitterClient.postTweet(content, images)
+      twitterResponse = await twitterClient.postTweet(content, tweetImages)
     }
 
     // Update tweet in database with Twitter ID and posted status

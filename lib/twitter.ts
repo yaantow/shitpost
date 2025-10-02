@@ -17,17 +17,23 @@ export class TwitterClient {
     try {
       let mediaIds: string[] = []
       
+      console.log('Twitter postTweet called with:', { text, images })
+      
       if (images && images.length > 0) {
+        console.log('Uploading images to Twitter...')
         // Upload images to Twitter and get media IDs
         mediaIds = await this.uploadImages(images)
+        console.log('Media IDs received:', mediaIds)
       }
 
       const tweetData: any = { text }
       if (mediaIds.length > 0) {
         tweetData.media = { media_ids: mediaIds }
+        console.log('Tweet data with media:', tweetData)
       }
 
       const tweet = await this.client.v2.tweet(tweetData)
+      console.log('Tweet posted successfully:', tweet)
       return {
         id: tweet.data.id,
         text: tweet.data.text,
@@ -81,7 +87,11 @@ export class TwitterClient {
     try {
       const mediaIds: string[] = []
       
+      console.log('Starting image upload process for:', images.length, 'images')
+      
       for (const image of images) {
+        console.log('Processing image:', image.url)
+        
         // Fetch the image from S3 URL
         const response = await fetch(image.url)
         if (!response.ok) {
@@ -91,17 +101,24 @@ export class TwitterClient {
         const imageBuffer = await response.arrayBuffer()
         const imageData = Buffer.from(imageBuffer)
         
+        console.log('Image fetched, size:', imageData.length, 'bytes')
+        
         // Upload to Twitter using v1.1 media upload endpoint
         const uploadResponse = await this.client.v1.uploadMedia(imageData, {
           mimeType: this.getMimeTypeFromUrl(image.url),
           additionalOwners: undefined,
         })
         
+        console.log('Twitter upload response:', uploadResponse)
+        
         // The response should have a media_id_string property
         const mediaId = (uploadResponse as any).media_id_string || uploadResponse
         mediaIds.push(mediaId)
+        
+        console.log('Media ID added:', mediaId)
       }
       
+      console.log('All images uploaded, media IDs:', mediaIds)
       return mediaIds
     } catch (error) {
       console.error('Error uploading images to Twitter:', error)
