@@ -45,7 +45,7 @@ export class TwitterClient {
 
       const tweetData: any = { text }
       if (mediaIds.length > 0) {
-        tweetData.media_ids = mediaIds
+        tweetData.media = { media_ids: mediaIds }
         console.log('Tweet data with media:', tweetData)
       } else {
         console.log('Tweet data without media:', tweetData)
@@ -89,7 +89,7 @@ export class TwitterClient {
 
         // Only attach images to the first tweet
         if (i === 0 && mediaIds.length > 0) {
-          tweetData.media_ids = mediaIds
+          tweetData.media = { media_ids: mediaIds }
         }
 
         const tweet = await this.client.v2.tweet(tweetData)
