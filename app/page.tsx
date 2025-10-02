@@ -73,6 +73,7 @@ export default function TweetScheduler() {
         scheduled_for: tweet.scheduledDate?.toISOString(),
         status: tweet.status === "published" ? ("posted" as const) : tweet.status,
         thread_tweets: tweet.isThread ? tweet.threadTweets : undefined,
+        images: tweet.images || undefined,
       }
       
       const result = await addTweet(tweetData)
@@ -90,6 +91,7 @@ export default function TweetScheduler() {
               content: tweet.content,
               isThread: tweet.isThread,
               threadTweets: tweet.threadTweets,
+              images: tweet.images,
             }),
           })
 

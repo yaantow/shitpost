@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { ChevronLeft, ChevronRight, Calendar, Edit, Plus, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, Edit, Plus, X, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import type { Tweet } from "@/types/tweet"
+import { ImageUpload } from "@/components/image-upload"
+import type { Tweet, TweetImage } from "@/types/tweet"
 
 interface CalendarViewProps {
   tweets: Tweet[]
@@ -27,6 +28,8 @@ export function CalendarView({ tweets, onUpdateTweet, onAddTweet, onDeleteTweet 
   const [editTime, setEditTime] = useState("")
   const [newTweetContent, setNewTweetContent] = useState("")
   const [newTweetTime, setNewTweetTime] = useState("09:00")
+  const [newTweetImages, setNewTweetImages] = useState<TweetImage[]>([])
+  const [isNewTweetImageDialogOpen, setIsNewTweetImageDialogOpen] = useState(false)
 
   const { calendarDays, monthName, year } = useMemo(() => {
     const year = currentDate.getFullYear()
@@ -140,9 +143,11 @@ export function CalendarView({ tweets, onUpdateTweet, onAddTweet, onDeleteTweet 
       content: newTweetContent.trim(),
       scheduledDate,
       status: "scheduled",
+      images: newTweetImages.length > 0 ? newTweetImages : undefined,
     })
 
     setNewTweetContent("")
+    setNewTweetImages([])
     setSelectedDate(null)
   }
 
@@ -306,7 +311,28 @@ export function CalendarView({ tweets, onUpdateTweet, onAddTweet, onDeleteTweet 
                     rows={3}
                     maxLength={280}
                   />
-                  <div className="text-xs text-muted-foreground mt-1">{newTweetContent.length}/280 characters</div>
+                  <div className="flex justify-between items-center mt-1">
+                    <div className="flex items-center gap-2">
+                      {newTweetImages.length > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <ImageIcon className="h-3 w-3" />
+                          <span>{newTweetImages.length}</span>
+                        </div>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsNewTweetImageDialogOpen(true)}
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {newTweetContent.length + (newTweetImages.length * 24)}/280 characters
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="new-tweet-time">Time</Label>
@@ -377,6 +403,28 @@ export function CalendarView({ tweets, onUpdateTweet, onAddTweet, onDeleteTweet 
               </Button>
               <Button onClick={handleSaveEdit} className="bg-blue-600 hover:bg-blue-700">
                 Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Tweet Image Upload Dialog */}
+      <Dialog open={isNewTweetImageDialogOpen} onOpenChange={setIsNewTweetImageDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Images</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <ImageUpload
+              images={newTweetImages}
+              onImagesChange={setNewTweetImages}
+              maxImages={4}
+              disabled={false}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsNewTweetImageDialogOpen(false)}>
+                Done
               </Button>
             </div>
           </div>
