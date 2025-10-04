@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Clock, Plus, Minus, CalendarIcon, Edit, X, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -41,6 +41,8 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     month: { scheduled: number; posted: number; remaining: number }
   } | null>(null)
   const [isLoadingLimits, setIsLoadingLimits] = useState(false)
+  const [isUploadingFromClipboard, setIsUploadingFromClipboard] = useState(false)
+  const [isDragOverTextarea, setIsDragOverTextarea] = useState(false)
 
   const imageCharacterCost = images.length * 24 // Each image costs 24 characters on Twitter
   const characterCount = content.length + imageCharacterCost
@@ -257,6 +259,172 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
     newThreadTweets[index] = value
     setThreadTweets(newThreadTweets)
   }
+
+  // Handle clipboard paste for images
+  const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items || isUploadingFromClipboard || isPosting) return
+
+    const imageFiles: File[] = []
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile()
+        if (file) {
+          imageFiles.push(file)
+        }
+      }
+    }
+
+    if (imageFiles.length > 0) {
+      e.preventDefault() // Prevent default paste behavior
+      
+      // Check if we can add more images
+      if (images.length + imageFiles.length > 4) {
+        // Show error or handle gracefully
+        return
+      }
+
+      setIsUploadingFromClipboard(true)
+      
+      // Use the existing image upload logic from ImageUpload component
+      try {
+        const newImages: TweetImage[] = []
+        
+        for (let i = 0; i < imageFiles.length; i++) {
+          const file = imageFiles[i]
+          
+          // Validate file
+          const maxSize = 5 * 1024 * 1024 // 5MB
+          const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+          
+          if (file.size > maxSize) {
+            continue // Skip oversized files
+          }
+          
+          if (!allowedTypes.includes(file.type)) {
+            continue // Skip unsupported types
+          }
+          
+          // Upload to S3
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          const response = await fetch('/api/upload/image', {
+            method: 'POST',
+            body: formData,
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            newImages.push({
+              id: `temp-${Date.now()}-${i}`,
+              url: data.url,
+              altText: '',
+              order: images.length + newImages.length,
+            })
+          }
+        }
+        
+        if (newImages.length > 0) {
+          setImages([...images, ...newImages])
+        }
+      } catch (error) {
+        console.error('Failed to upload pasted images:', error)
+      } finally {
+        setIsUploadingFromClipboard(false)
+      }
+    }
+  }, [images, isUploadingFromClipboard, isPosting])
+
+  // Handle drag and drop for textarea
+  const handleDragOverTextarea = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    if (!isPosting && !isUploadingFromClipboard) {
+      setIsDragOverTextarea(true)
+    }
+  }, [isPosting, isUploadingFromClipboard])
+
+  const handleDragLeaveTextarea = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOverTextarea(false)
+  }, [])
+
+  const handleDropTextarea = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOverTextarea(false)
+    
+    if (isPosting || isUploadingFromClipboard) return
+    
+    const files = e.dataTransfer.files
+    if (!files || files.length === 0) return
+
+    const imageFiles: File[] = []
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (file.type.startsWith('image/')) {
+        imageFiles.push(file)
+      }
+    }
+
+    if (imageFiles.length > 0) {
+      // Check if we can add more images
+      if (images.length + imageFiles.length > 4) {
+        return
+      }
+
+      setIsUploadingFromClipboard(true)
+      
+      try {
+        const newImages: TweetImage[] = []
+        
+        for (let i = 0; i < imageFiles.length; i++) {
+          const file = imageFiles[i]
+          
+          // Validate file
+          const maxSize = 5 * 1024 * 1024 // 5MB
+          const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+          
+          if (file.size > maxSize) {
+            continue // Skip oversized files
+          }
+          
+          if (!allowedTypes.includes(file.type)) {
+            continue // Skip unsupported types
+          }
+          
+          // Upload to S3
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          const response = await fetch('/api/upload/image', {
+            method: 'POST',
+            body: formData,
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            newImages.push({
+              id: `temp-${Date.now()}-${i}`,
+              url: data.url,
+              altText: '',
+              order: images.length + newImages.length,
+            })
+          }
+        }
+        
+        if (newImages.length > 0) {
+          setImages([...images, ...newImages])
+        }
+      } catch (error) {
+        console.error('Failed to upload dropped images:', error)
+      } finally {
+        setIsUploadingFromClipboard(false)
+      }
+    }
+  }, [images, isPosting, isUploadingFromClipboard])
 
   const getCharacterCountColor = (count: number) => {
     if (count > 260) return "text-red-400"
@@ -558,7 +726,13 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                       placeholder="What's happening? Start typing..."
                       value={content}
                       onChange={(e) => setContent(e.target.value)}
-                      className="min-h-[100px] resize-none text-lg border-0 bg-transparent focus-visible:ring-0 p-0"
+                      onPaste={handlePaste}
+                      onDragOver={handleDragOverTextarea}
+                      onDragLeave={handleDragLeaveTextarea}
+                      onDrop={handleDropTextarea}
+                      className={`min-h-[100px] resize-none text-lg border-0 bg-transparent focus-visible:ring-0 p-0 transition-colors ${
+                        isDragOverTextarea ? 'bg-blue-50 dark:bg-blue-950/20' : ''
+                      }`}
                       maxLength={300}
                     />
                     <div className="flex justify-between items-center">
@@ -579,6 +753,9 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                         >
                           <ImageIcon className="h-4 w-4" />
                         </Button>
+                        <span className="text-xs text-muted-foreground">
+                          {isUploadingFromClipboard ? 'Uploading images...' : 'or paste/drag images (Ctrl+V)'}
+                        </span>
                       </div>
                       <div className={`text-sm font-medium ${getCharacterCountColor(characterCount)}`}>
                         {characterCount}/{maxCharacters}
@@ -610,7 +787,13 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                         placeholder={`Tweet ${index + 1}...`}
                         value={tweet}
                         onChange={(e) => updateThreadTweet(index, e.target.value)}
-                        className="min-h-[80px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0"
+                        onPaste={index === 0 ? handlePaste : undefined}
+                        onDragOver={index === 0 ? handleDragOverTextarea : undefined}
+                        onDragLeave={index === 0 ? handleDragLeaveTextarea : undefined}
+                        onDrop={index === 0 ? handleDropTextarea : undefined}
+                        className={`min-h-[80px] resize-none border-0 bg-transparent focus-visible:ring-0 p-0 transition-colors ${
+                          index === 0 && isDragOverTextarea ? 'bg-blue-50 dark:bg-blue-950/20' : ''
+                        }`}
                         maxLength={280}
                       />
                       <div className="flex justify-between items-center">
@@ -632,6 +815,11 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                             >
                               <ImageIcon className="h-4 w-4" />
                             </Button>
+                          )}
+                          {index === 0 && (
+                            <span className="text-xs text-muted-foreground">
+                              {isUploadingFromClipboard ? 'Uploading images...' : 'or paste/drag images (Ctrl+V)'}
+                            </span>
                           )}
                         </div>
                         <div className={`text-sm font-medium ${getCharacterCountColor(tweet.length)}`}>
@@ -838,7 +1026,149 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                 id="edit-content"
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="mt-1"
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  if (!isPosting && !isUploadingFromClipboard) {
+                    setIsDragOverTextarea(true)
+                  }
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault()
+                  setIsDragOverTextarea(false)
+                }}
+                onDrop={async (e: React.DragEvent) => {
+                  e.preventDefault()
+                  setIsDragOverTextarea(false)
+                  
+                  if (isPosting || isUploadingFromClipboard) return
+                  
+                  const files = e.dataTransfer.files
+                  if (!files || files.length === 0) return
+
+                  const imageFiles: File[] = []
+                  
+                  for (let i = 0; i < files.length; i++) {
+                    const file = files[i]
+                    if (file.type.startsWith('image/')) {
+                      imageFiles.push(file)
+                    }
+                  }
+
+                  if (imageFiles.length > 0) {
+                    if (editImages.length + imageFiles.length > 4) {
+                      return
+                    }
+
+                    setIsUploadingFromClipboard(true)
+                    
+                    try {
+                      const newImages: TweetImage[] = []
+                      
+                      for (let i = 0; i < imageFiles.length; i++) {
+                        const file = imageFiles[i]
+                        
+                        const maxSize = 5 * 1024 * 1024
+                        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+                        
+                        if (file.size > maxSize || !allowedTypes.includes(file.type)) {
+                          continue
+                        }
+                        
+                        const formData = new FormData()
+                        formData.append('file', file)
+                        
+                        const response = await fetch('/api/upload/image', {
+                          method: 'POST',
+                          body: formData,
+                        })
+                        
+                        if (response.ok) {
+                          const data = await response.json()
+                          newImages.push({
+                            id: `temp-${Date.now()}-${i}`,
+                            url: data.url,
+                            altText: '',
+                            order: editImages.length + newImages.length,
+                          })
+                        }
+                      }
+                      
+                      if (newImages.length > 0) {
+                        setEditImages([...editImages, ...newImages])
+                      }
+                    } catch (error) {
+                      console.error('Failed to upload dropped images:', error)
+                    } finally {
+                      setIsUploadingFromClipboard(false)
+                    }
+                  }
+                }}
+                onPaste={async (e: React.ClipboardEvent) => {
+                  const items = e.clipboardData?.items
+                  if (!items) return
+
+                  const imageFiles: File[] = []
+                  
+                  for (let i = 0; i < items.length; i++) {
+                    const item = items[i]
+                    if (item.type.startsWith('image/')) {
+                      const file = item.getAsFile()
+                      if (file) {
+                        imageFiles.push(file)
+                      }
+                    }
+                  }
+
+                  if (imageFiles.length > 0) {
+                    e.preventDefault()
+                    
+                    if (editImages.length + imageFiles.length > 4) {
+                      return
+                    }
+
+                    try {
+                      const newImages: TweetImage[] = []
+                      
+                      for (let i = 0; i < imageFiles.length; i++) {
+                        const file = imageFiles[i]
+                        
+                        const maxSize = 5 * 1024 * 1024
+                        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+                        
+                        if (file.size > maxSize || !allowedTypes.includes(file.type)) {
+                          continue
+                        }
+                        
+                        const formData = new FormData()
+                        formData.append('file', file)
+                        
+                        const response = await fetch('/api/upload/image', {
+                          method: 'POST',
+                          body: formData,
+                        })
+                        
+                        if (response.ok) {
+                          const data = await response.json()
+                          newImages.push({
+                            id: `temp-${Date.now()}-${i}`,
+                            url: data.url,
+                            altText: '',
+                            order: editImages.length + newImages.length,
+                          })
+                        }
+                      }
+                      
+                      if (newImages.length > 0) {
+                        setEditImages([...editImages, ...newImages])
+                      }
+                    } catch (error) {
+                      console.error('Failed to upload pasted images:', error)
+                    }
+                  }
+                }}
+                className={`mt-1 transition-colors ${
+                  isDragOverTextarea ? 'bg-blue-50 dark:bg-blue-950/20' : ''
+                }`}
                 rows={4}
               />
               <div className="text-xs text-muted-foreground mt-1">{editContent.length}/280 characters</div>
