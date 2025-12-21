@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Use images from database if not provided in request body
     const tweetImages = images || tweetData.images
-    
+
     // Debug logging
     console.log('Posting tweet with images:', {
       tweetId,
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       }
     } catch (twitterError) {
       console.error('Twitter API error:', twitterError)
-      
+
       // Update tweet status to failed
       await supabase
         .from("tweets")
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", tweetId)
         .eq("user_id", user.id)
-      
+
       return NextResponse.json(
         { error: `Failed to post to Twitter: ${twitterError instanceof Error ? twitterError.message : 'Unknown error'}` },
         { status: 500 }

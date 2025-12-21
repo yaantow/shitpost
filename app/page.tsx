@@ -75,14 +75,14 @@ export default function TweetScheduler() {
         thread_tweets: tweet.isThread ? tweet.threadTweets : undefined,
         images: tweet.images || undefined,
       }
-      
+
       const result = await addTweet(tweetData)
-      
+
       // If this is a "Post Now" tweet (status: "posted"), post it to Twitter immediately
       if (tweet.status === "published") {
         try {
           toast.loading("Posting to Twitter...", { id: "posting-tweet" })
-          
+
           const postResponse = await fetch("/api/tweets/post", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -257,14 +257,14 @@ export default function TweetScheduler() {
                 <span>&copy; 2024 ShitPost. All rights reserved.</span>
               </div>
               <div className="flex items-center gap-6">
-                <Link 
-                  href="/privacy" 
+                <Link
+                  href="/privacy"
                   className="hover:text-foreground transition-colors"
                 >
                   Privacy Policy
                 </Link>
-                <Link 
-                  href="/terms" 
+                <Link
+                  href="/terms"
                   className="hover:text-foreground transition-colors"
                 >
                   Terms of Service

@@ -32,10 +32,10 @@ export class TwitterClient {
   async postTweet(text: string, images?: TweetImage[]): Promise<{ id: string; text: string }> {
     try {
       let mediaIds: string[] = []
-      
+
       console.log('Twitter postTweet called with:', { text, images })
       console.log('Twitter client initialized:', !!this.client)
-      
+
       if (images && images.length > 0) {
         console.log('Uploading images to Twitter...')
         // Upload images to Twitter and get media IDs
@@ -82,7 +82,7 @@ export class TwitterClient {
 
       for (let i = 0; i < tweets.length; i++) {
         const tweetData: any = { text: tweets[i] }
-        
+
         if (replyToId) {
           tweetData.reply = { in_reply_to_tweet_id: replyToId }
         }
@@ -97,7 +97,7 @@ export class TwitterClient {
           id: tweet.data.id,
           text: tweet.data.text,
         })
-        
+
         replyToId = tweet.data.id
       }
 
@@ -111,49 +111,49 @@ export class TwitterClient {
   private async uploadImages(images: TweetImage[]): Promise<string[]> {
     try {
       const mediaIds: string[] = []
-      
+
       console.log('Starting image upload process for:', images.length, 'images')
-      
+
       for (const image of images) {
         console.log('Processing image:', image.url)
-        
+
         // Validate image URL
         if (!image.url || !image.url.startsWith('http')) {
           throw new Error(`Invalid image URL: ${image.url}`)
         }
-        
+
         // Fetch the image from S3 URL
         const response = await fetch(image.url)
         if (!response.ok) {
           throw new Error(`Failed to fetch image from ${image.url}: ${response.status} ${response.statusText}`)
         }
-        
+
         const imageBuffer = await response.arrayBuffer()
         const imageData = Buffer.from(imageBuffer)
-        
+
         console.log('Image fetched, size:', imageData.length, 'bytes')
-        
+
         // Validate image size (Twitter has limits)
         if (imageData.length === 0) {
           throw new Error('Image file is empty')
         }
-        
+
         if (imageData.length > 5 * 1024 * 1024) { // 5MB limit
           throw new Error('Image file too large (max 5MB)')
         }
-        
+
         // Upload to Twitter using v1.1 media upload endpoint
         // Use OAuth 1.0a client for media uploads if available, otherwise fall back to OAuth 2.0
         const clientToUse = this.mediaClient || this.client
         console.log('Using client for media upload:', this.mediaClient ? 'OAuth 1.0a' : 'OAuth 2.0')
-        
+
         const uploadResponse = await clientToUse.v1.uploadMedia(imageData, {
           mimeType: this.getMimeTypeFromUrl(image.url),
           additionalOwners: undefined,
         })
-        
+
         console.log('Twitter upload response:', uploadResponse)
-        
+
         // Extract media ID from response
         let mediaId: string
         if (typeof uploadResponse === 'string') {
@@ -163,15 +163,15 @@ export class TwitterClient {
         } else {
           throw new Error(`Unexpected upload response format: ${JSON.stringify(uploadResponse)}`)
         }
-        
+
         if (!mediaId) {
           throw new Error('No media ID returned from Twitter upload')
         }
-        
+
         mediaIds.push(mediaId)
         console.log('Media ID added:', mediaId)
       }
-      
+
       console.log('All images uploaded, media IDs:', mediaIds)
       return mediaIds
     } catch (error) {
@@ -216,7 +216,7 @@ export class TwitterClient {
 
 export async function createTwitterClient(credentials: TwitterCredentials): Promise<TwitterClient> {
   const client = new TwitterClient(credentials)
-  
+
   // Skip credential verification for now since we're using Supabase tokens
   // The verification will happen when we try to post
   return client

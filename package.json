@@ -10,6 +10,7 @@
     "cron": "node scripts/cron-runner.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "latest",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "latest",
@@ -38,12 +39,14 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.4.2",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "@types/three": "^0.182.0",
     "@vercel/analytics": "latest",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
-    "@aws-sdk/client-s3": "latest",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
@@ -62,6 +65,7 @@
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",
+    "three": "^0.182.0",
     "twitter-api-v2": "^1.27.0",
     "vaul": "^0.9.9",
     "zod": "3.25.67"

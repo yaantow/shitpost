@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   // Verify this is a legitimate cron request (optional security check)
   const authHeader = request.headers.get('authorization')
   const cronSecret = process.env.CRON_SECRET
-  
+
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
@@ -46,9 +46,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (!scheduledTweets || scheduledTweets.length === 0) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         message: "No scheduled tweets to process",
-        processed: 0 
+        processed: 0
       })
     }
 
@@ -62,14 +62,14 @@ export async function GET(request: NextRequest) {
     // Process each scheduled tweet with rate limiting
     for (let i = 0; i < scheduledTweets.length; i++) {
       const tweet = scheduledTweets[i]
-      
+
       try {
         results.processed++
 
         // Add delay between tweets to respect rate limits
         const delay = calculateDelay(i)
         if (delay > 0) {
-          console.log(`Waiting ${delay/1000} seconds before processing next tweet...`)
+          console.log(`Waiting ${delay / 1000} seconds before processing next tweet...`)
           await new Promise(resolve => setTimeout(resolve, delay))
         }
 
@@ -252,16 +252,16 @@ export async function GET(request: NextRequest) {
         results.failed++
         const errorMessage = error instanceof Error ? error.message : "Unknown error"
         results.errors.push(`Tweet ${tweet.id}: ${errorMessage}`)
-        
+
         // Check if it's a rate limit error
         const isRateLimit = isRateLimitError(errorMessage)
-        
+
         if (isRateLimit) {
           console.error(`Rate limit hit for tweet ${tweet.id}. Stopping processing to avoid further limits.`)
           results.errors.push(`Rate limit reached. Remaining tweets will be processed in the next run.`)
           break // Stop processing to avoid hitting rate limits further
         }
-        
+
         // Mark tweet as failed
         await supabase
           .from("tweets")
