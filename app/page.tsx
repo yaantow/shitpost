@@ -9,7 +9,6 @@ import { TweetComposer } from "@/components/tweet-composer"
 import { CalendarView } from "@/components/calendar-view"
 import { TweetManager } from "@/components/tweet-manager"
 import { ProfileMenu } from "@/components/profile-menu"
-import { createClient } from "@/lib/supabase/client"
 import { useTweets } from "@/hooks/use-tweets"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -20,17 +19,15 @@ export default function TweetScheduler() {
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showLoginPrompt, setShowLoginPrompt] = useState(false)
-  const supabase = createClient()
 
   const { tweets, isLoading: tweetsLoading, error, addTweet, updateTweet, deleteTweet } = useTweets()
 
   useEffect(() => {
     const getUser = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        setUser(user)
+        const response = await fetch("/api/auth/user")
+        const data = await response.json()
+        setUser(data.user)
       } catch (error) {
         console.error("Error fetching user:", error)
       } finally {
@@ -39,19 +36,7 @@ export default function TweetScheduler() {
     }
 
     getUser()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null)
-      if (session?.user) {
-        setShowLoginPrompt(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase])
+  }, [])
 
   // Tweets are already transformed in the useTweets hook
   const convertedTweets = tweets

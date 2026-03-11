@@ -1,6 +1,5 @@
 "use client"
 
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -27,42 +26,18 @@ export function ProfileMenu() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     const getProfile = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (!user) {
+        const response = await fetch("/api/profile")
+        if (!response.ok) {
           setIsLoading(false)
           return
         }
-
-        const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-        if (error) {
-          console.error("Profile error:", error)
-          // Create a basic profile if none exists
-          const basicProfile = {
-            id: user.id,
-            email: user.email || '',
-            display_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
-            twitter_username: user.user_metadata?.user_name || user.user_metadata?.preferred_username
-          }
-          setProfile(basicProfile)
-        } else if (profileData) {
-          setProfile(profileData)
-        } else {
-          // Fallback profile
-          const fallbackProfile = {
-            id: user.id,
-            email: user.email || '',
-            display_name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
-            twitter_username: user.user_metadata?.user_name || user.user_metadata?.preferred_username
-          }
-          setProfile(fallbackProfile)
+        const data = await response.json()
+        if (data.profile) {
+          setProfile(data.profile)
         }
       } catch (error) {
         console.error("Error fetching profile:", error)
@@ -80,11 +55,12 @@ export function ProfileMenu() {
 
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
-  }, [supabase])
+  }, [])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await fetch("/api/auth/logout", { method: "POST" })
     router.push("/")
+    router.refresh()
   }
 
   const handleConnectTwitter = async () => {
@@ -107,20 +83,11 @@ export function ProfileMenu() {
 
   const refreshProfile = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: profileData, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-      if (error) {
-        console.error("Profile error:", error)
-        return
-      }
-
-      if (profileData) {
-        setProfile(profileData)
+      const response = await fetch("/api/profile")
+      if (!response.ok) return
+      const data = await response.json()
+      if (data.profile) {
+        setProfile(data.profile)
       }
     } catch (error) {
       console.error("Error refreshing profile:", error)

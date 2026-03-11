@@ -929,8 +929,8 @@ export function TweetComposer({ onAddTweet, onUpdateTweet, onDeleteTweet, tweets
                 <h3 className="font-medium text-sm">This Month</h3>
               </div>
               <div className="grid grid-cols-7 gap-1 text-xs">
-                {["S", "M", "T", "W", "T", "F", "S"].map((day) => (
-                  <div key={day} className="text-center text-muted-foreground font-medium p-1">
+                {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+                  <div key={index} className="text-center text-muted-foreground font-medium p-1">
                     {day}
                   </div>
                 ))}

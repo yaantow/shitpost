@@ -1,14 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
 import type { Tweet } from "@/types/tweet"
 
 export function useTweets() {
   const [tweets, setTweets] = useState<Tweet[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
 
   const fetchTweets = async () => {
     try {

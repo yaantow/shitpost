@@ -2,7 +2,6 @@
 
 import type React from "react"
 
-import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -27,7 +26,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const router = useRouter()
-  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,16 +33,17 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     setMessage(null)
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
+      const response = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           display_name: displayName,
           twitter_username: twitterUsername || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", profile.id)
+        }),
+      })
 
-      if (error) throw error
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "Failed to update profile")
 
       setMessage({ type: "success", text: "Profile updated successfully!" })
       router.refresh()
